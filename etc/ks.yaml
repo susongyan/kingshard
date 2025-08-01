@@ -21,7 +21,8 @@ web_password : admin
 
 # if set log_path, the sql log will write into log_path/sql.log,the system log
 # will write into log_path/sys.log
-#log_path : /Users/flike/log
+# log_path : /Users/flike/log
+log_path : ../../log
 
 # log level[debug|info|warn|error],default error
 log_level : debug
@@ -54,7 +55,7 @@ nodes :
 
     # all mysql in a node must have the same user and password
     user :  root 
-    password : root
+    password : 123456
 
     # master represents a real mysql master server 
     master : 127.0.0.1:3306
@@ -71,10 +72,10 @@ nodes :
 
     # all mysql in a node must have the same user and password
     user :  root 
-    password : root
+    password : 123456
 
     # master represents a real mysql master server 
-    master : 127.0.0.1:3309
+    master : 127.0.0.1:3307
 
     # slave represents a real mysql salve server 
     slave : 

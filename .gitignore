@@ -6,3 +6,4 @@ y.output
 *.iml
 core/hack/version.go
 .vscode/
+log/
