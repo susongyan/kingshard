@@ -50,9 +50,10 @@ type Rule struct {
 
 type Router struct {
 	//map[db]map[table_name]*Rule
-	Rules       map[string]map[string]*Rule
-	DefaultRule *Rule
-	Nodes       []string //just for human saw
+	Rules        map[string]map[string]*Rule
+	DefaultRule  *Rule
+	FallbackRule *Rule
+	Nodes        []string //just for human saw
 }
 
 func NewDefaultRule(node string) *Rule {
@@ -108,11 +109,20 @@ func NewRouter(schemaConfig *config.SchemaConfig) (*Router, error) {
 		return nil, fmt.Errorf("default node[%s] not in the nodes list",
 			schemaConfig.Default)
 	}
+	fallbackNode := schemaConfig.Fallback
+	if fallbackNode == "" {
+		fallbackNode = schemaConfig.Default
+	}
+	if !includeNode(schemaConfig.Nodes, fallbackNode) {
+		return nil, fmt.Errorf("fallback node[%s] not in the nodes list",
+			fallbackNode)
+	}
 
 	rt := new(Router)
 	rt.Nodes = schemaConfig.Nodes //对应schema中的nodes
 	rt.Rules = make(map[string]map[string]*Rule)
 	rt.DefaultRule = NewDefaultRule(schemaConfig.Default)
+	rt.FallbackRule = NewDefaultRule(fallbackNode)
 
 	for _, shard := range schemaConfig.ShardRule {
 		for _, node := range shard.Nodes {
@@ -159,6 +169,11 @@ func (r *Router) GetRule(db, table string) *Rule {
 	} else {
 		return rule
 	}
+}
+
+func (r *Router) GetFallbackRule(db string) *Rule {
+	r.FallbackRule.DB = db
+	return r.FallbackRule
 }
 
 func parseRule(cfg *config.ShardConfig) (*Rule, error) {

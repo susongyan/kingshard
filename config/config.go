@@ -72,7 +72,8 @@ type SchemaConfig struct {
 	User      string        `yaml:"user"`
 	Nodes     []string      `yaml:"nodes"`
 	Default   string        `yaml:"default"` //default node
-	ShardRule []ShardConfig `yaml:"shard"`   //route rule
+	Fallback  string        `yaml:"fallback"`
+	ShardRule []ShardConfig `yaml:"shard"` //route rule
 }
 
 // range,hash or date

@@ -25,6 +25,7 @@ import (
 
 	"github.com/flike/kingshard/backend"
 	"github.com/flike/kingshard/mysql"
+	"github.com/flike/kingshard/proxy/router"
 	"github.com/flike/kingshard/sqlparser"
 )
 
@@ -521,7 +522,9 @@ func (p postgresFrontendProtocol) handleParse(c *ClientConn, payload []byte) err
 
 	stmt, err := sqlparser.Parse(strings.TrimRight(strings.TrimSpace(rewrittenQuery), ";"))
 	if err != nil {
-		return err
+		if _, routeErr := router.ParseRouteStatement(query, router.RouteDialectPostgres); routeErr != nil {
+			return routeErr
+		}
 	}
 
 	state := postgresFrontendStateFor(c)
@@ -729,6 +732,9 @@ func (p postgresFrontendProtocol) handleExecute(c *ClientConn, payload []byte) e
 	defer func() {
 		state.rowDescOverride = nil
 	}()
+	if statement.statement == nil {
+		return c.handleRoutedQuery(strings.TrimSpace(statement.originalQuery), router.RouteDialectPostgres, portal.args)
+	}
 	return c.executePreparedStatement(statement.statement, strings.TrimSpace(statement.rewrittenQuery), portal.args)
 }
 

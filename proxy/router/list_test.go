@@ -128,31 +128,31 @@ func TestMakeLeList(t *testing.T) {
 	testCheckList(t, l3, []int{}...)
 }
 
-func TestmakeLtList(t *testing.T) {
+func TestMakeLtList(t *testing.T) {
 	l1 := []int{20150802, 20150812, 20150822, 20150823, 20150825, 20150828}
-	l2 := makeLeList(20150822, l1)
+	l2 := makeLtList(20150822, l1)
 	testCheckList(t, l2, 20150802, 20150812)
-	l3 := makeLeList(20150824, l1)
+	l3 := makeLtList(20150824, l1)
 	testCheckList(t, l3, []int{}...)
-	l4 := makeLeList(20150802, l1)
+	l4 := makeLtList(20150802, l1)
 	testCheckList(t, l4, []int{}...)
 }
 
-func TestmakeGeList(t *testing.T) {
+func TestMakeGeList(t *testing.T) {
 	l1 := []int{20150802, 20150812, 20150822, 20150823, 20150825, 20150828}
-	l2 := makeLeList(20150822, l1)
+	l2 := makeGeList(20150822, l1)
 	testCheckList(t, l2, 20150822, 20150823, 20150825, 20150828)
-	l3 := makeLeList(20150828, l1)
+	l3 := makeGeList(20150828, l1)
 	testCheckList(t, l3, 20150828)
 }
 
-func TestmakeGtList(t *testing.T) {
+func TestMakeGtList(t *testing.T) {
 	l1 := []int{20150802, 20150812, 20150822, 20150823, 20150825, 20150828}
-	l2 := makeLeList(20150822, l1)
+	l2 := makeGtList(20150822, l1)
 	testCheckList(t, l2, 20150823, 20150825, 20150828)
-	l3 := makeLeList(20150824, l1)
+	l3 := makeGtList(20150824, l1)
 	testCheckList(t, l3, []int{}...)
-	l4 := makeLeList(20150828, l1)
+	l4 := makeGtList(20150828, l1)
 	testCheckList(t, l4, []int{}...)
 }
 

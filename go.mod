@@ -9,7 +9,9 @@ require (
 	github.com/labstack/echo v3.3.10+incompatible
 	github.com/labstack/gommon v0.3.0
 	github.com/lib/pq v1.10.9 // indirect
+	github.com/pganalyze/pg_query_go/v6 v6.0.0 // indirect
 	github.com/prometheus/client_golang v1.2.1
 	github.com/valyala/fasttemplate v1.1.0 // indirect
+	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/yaml.v2 v2.2.5
 )

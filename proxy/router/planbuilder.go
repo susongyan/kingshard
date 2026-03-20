@@ -45,6 +45,7 @@ type Plan struct {
 	InRightToReplace    *sqlparser.ComparisonExpr  //记录in的右边Expr,用来动态替换不同table in的值
 	RouteTableIndexs    []int
 	RouteNodeIndexs     []int
+	RouteRowIndexGroups map[int][]int
 	RewrittenSqls       map[string][]string
 }
 

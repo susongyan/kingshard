@@ -48,6 +48,9 @@ func (c *ClientConn) handleQuery(sql string) (err error) {
 	}()
 
 	sql = strings.TrimRight(sql, ";") //删除sql语句最后的分号
+	if c.frontend != nil && c.frontend.Name() == PostgresFrontendType {
+		return c.handlePostgresQuery(sql)
+	}
 	hasHandled, err := c.preHandleShard(sql)
 	if err != nil {
 		golog.Error("server", "preHandleShard", err.Error(), 0,
@@ -67,6 +70,18 @@ func (c *ClientConn) handleQuery(sql string) (err error) {
 		return err
 	}
 
+	return c.dispatchParsedStatement(stmt, sql)
+}
+
+func (c *ClientConn) handlePostgresQuery(sql string) error {
+	stmt, err := sqlparser.Parse(sql)
+	if err == nil {
+		return c.dispatchParsedStatement(stmt, sql)
+	}
+	return c.handleRoutedQuery(sql, PostgresFrontendType, nil)
+}
+
+func (c *ClientConn) dispatchParsedStatement(stmt sqlparser.Statement, sql string) error {
 	switch v := stmt.(type) {
 	case *sqlparser.Select:
 		return c.handleSelect(v, nil)
@@ -105,8 +120,6 @@ func (c *ClientConn) handleQuery(sql string) (err error) {
 	default:
 		return fmt.Errorf("statement %T not support now", stmt)
 	}
-
-	return nil
 }
 
 // 获取shard的conn，第一个参数表示是不是select
