@@ -25,9 +25,9 @@ var configFileName string
 
 //整个config文件对应的结构
 type Config struct {
-	Addr     		string       	`yaml:"addr"`
-	PrometheusAddr 	string		 	`yaml:"prometheus_addr"`
-	UserList 		[]UserConfig 	`yaml:"user_list"`
+	Addr           string       `yaml:"addr"`
+	PrometheusAddr string       `yaml:"prometheus_addr"`
+	UserList       []UserConfig `yaml:"user_list"`
 
 	WebAddr     string `yaml:"web_addr"`
 	WebUser     string `yaml:"web_user"`
@@ -54,6 +54,7 @@ type UserConfig struct {
 //node节点对应的配置
 type NodeConfig struct {
 	Name             string `yaml:"name"`
+	BackendType      string `yaml:"backend_type"`
 	DownAfterNoAlive int    `yaml:"down_after_noalive"`
 	MaxConnNum       int    `yaml:"max_conns_limit"`
 

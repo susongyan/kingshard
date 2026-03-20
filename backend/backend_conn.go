@@ -30,7 +30,7 @@ var (
 	pingPeriod = int64(time.Second * 16)
 )
 
-//proxy <-> mysql server
+// proxy <-> mysql server
 type Conn struct {
 	conn net.Conn
 
@@ -454,7 +454,7 @@ func (c *Conn) SetCharset(charset string, collation mysql.CollationId) error {
 
 	_, ok = mysql.Collations[collation]
 	if !ok {
-		return fmt.Errorf("invalid collation %s", collation)
+		return fmt.Errorf("invalid collation %d", collation)
 	}
 
 	if _, err := c.exec(fmt.Sprintf("SET NAMES %s COLLATE %s", charset, mysql.Collations[collation])); err != nil {
@@ -726,4 +726,54 @@ func (c *Conn) IsInTransaction() bool {
 
 func (c *Conn) GetCharset() string {
 	return c.charset
+}
+
+func (c *Conn) SessionState() SessionState {
+	return SessionState{
+		Database:      c.db,
+		Charset:       c.charset,
+		Collation:     c.collation,
+		AutoCommit:    c.IsAutoCommit(),
+		InTransaction: c.IsInTransaction(),
+	}
+}
+
+func (c *Conn) SyncSession(state SessionState) error {
+	if state.Database != "" && state.Database != c.db {
+		if err := c.UseDB(state.Database); err != nil {
+			return err
+		}
+	}
+
+	if state.AutoCommit != c.IsAutoCommit() {
+		if state.AutoCommit {
+			if err := c.SetAutoCommit(1); err != nil {
+				return err
+			}
+		} else {
+			if err := c.SetAutoCommit(0); err != nil {
+				return err
+			}
+		}
+	}
+
+	if state.Charset != "" && (state.Charset != c.charset || state.Collation != c.collation) {
+		if err := c.SetCharset(state.Charset, state.Collation); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *Conn) LastError() error {
+	return c.pkgErr
+}
+
+func (c *Conn) PushTimestamp() int64 {
+	return c.pushTimestamp
+}
+
+func (c *Conn) SetPushTimestamp(ts int64) {
+	c.pushTimestamp = ts
 }

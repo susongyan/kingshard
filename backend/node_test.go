@@ -24,16 +24,12 @@ func TestParse(t *testing.T) {
 	node := new(Node)
 	nodeConfig := config.NodeConfig{
 		Name:             "node1",
+		MaxConnNum:       16,
 		DownAfterNoAlive: 100,
-		IdleConns:        16,
 		User:             "hello",
 		Password:         "world",
 		Master:           "127.0.0.1:3307",
-		Slave: []string{
-			"192.168.1.12:3306@2",
-			"192.168.1.13:3306@4",
-			"192.168.1.14:3306@8",
-		},
+		Slave:            "192.168.1.12:3306@2,192.168.1.13:3306@4,192.168.1.14:3306@8",
 	}
 	node.Cfg = nodeConfig
 	err := node.ParseMaster(nodeConfig.Master)

@@ -1,8 +1,6 @@
 package backend
 
 import (
-	. "github.com/flike/kingshard/backend"
-
 	"testing"
 )
 

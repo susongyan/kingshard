@@ -22,6 +22,8 @@ import (
 	"github.com/flike/kingshard/mysql"
 )
 
+var _ PreparedStatement = (*Stmt)(nil)
+
 type Stmt struct {
 	conn  *Conn
 	id    uint32
@@ -181,7 +183,7 @@ func (s *Stmt) write(args ...interface{}) error {
 	return s.conn.writePacket(data)
 }
 
-func (c *Conn) Prepare(query string) (*Stmt, error) {
+func (c *Conn) Prepare(query string) (PreparedStatement, error) {
 	if err := c.writeCommandStr(mysql.COM_STMT_PREPARE, query); err != nil {
 		return nil, err
 	}

@@ -37,17 +37,18 @@ const (
 type DB struct {
 	sync.RWMutex
 
-	addr     string
-	user     string
-	password string
-	db       string
-	state    int32
+	backendType string
+	addr        string
+	user        string
+	password    string
+	db          string
+	state       int32
 
 	maxConnNum  int
 	InitConnNum int
-	idleConns   chan *Conn
-	cacheConns  chan *Conn
-	checkConn   *Conn
+	idleConns   chan ManagedConn
+	cacheConns  chan ManagedConn
+	checkConn   ManagedConn
 	lastPing    int64
 
 	pushConnCount int64
@@ -55,8 +56,13 @@ type DB struct {
 }
 
 func Open(addr string, user string, password string, dbName string, maxConnNum int) (*DB, error) {
+	return OpenWithDriver(DefaultBackendType, addr, user, password, dbName, maxConnNum)
+}
+
+func OpenWithDriver(backendType string, addr string, user string, password string, dbName string, maxConnNum int) (*DB, error) {
 	var err error
 	db := new(DB)
+	db.backendType = NormalizeBackendType(backendType)
 	db.addr = addr
 	db.user = user
 	db.password = password
@@ -80,8 +86,8 @@ func Open(addr string, user string, password string, dbName string, maxConnNum i
 		return nil, err
 	}
 
-	db.idleConns = make(chan *Conn, db.maxConnNum)
-	db.cacheConns = make(chan *Conn, db.maxConnNum)
+	db.idleConns = make(chan ManagedConn, db.maxConnNum)
+	db.cacheConns = make(chan ManagedConn, db.maxConnNum)
 	atomic.StoreInt32(&(db.state), Unknown)
 
 	for i := 0; i < db.maxConnNum; i++ {
@@ -149,7 +155,7 @@ func (db *DB) Close() error {
 	return nil
 }
 
-func (db *DB) getConns() (chan *Conn, chan *Conn) {
+func (db *DB) getConns() (chan ManagedConn, chan ManagedConn) {
 	db.RLock()
 	cacheConns := db.cacheConns
 	idleConns := db.idleConns
@@ -157,14 +163,14 @@ func (db *DB) getConns() (chan *Conn, chan *Conn) {
 	return cacheConns, idleConns
 }
 
-func (db *DB) getCacheConns() chan *Conn {
+func (db *DB) getCacheConns() chan ManagedConn {
 	db.RLock()
 	conns := db.cacheConns
 	db.RUnlock()
 	return conns
 }
 
-func (db *DB) getIdleConns() chan *Conn {
+func (db *DB) getIdleConns() chan ManagedConn {
 	db.RLock()
 	conns := db.idleConns
 	db.RUnlock()
@@ -194,20 +200,24 @@ func (db *DB) Ping() error {
 	return nil
 }
 
-func (db *DB) newConn() (*Conn, error) {
-	co := new(Conn)
-
-	if err := co.Connect(db.addr, db.user, db.password, db.db); err != nil {
+func (db *DB) newConn() (ManagedConn, error) {
+	driver, err := GetDriver(db.backendType)
+	if err != nil {
 		return nil, err
 	}
 
-	co.pushTimestamp = time.Now().Unix()
+	co, err := driver.Open(db.addr, db.user, db.password, db.db)
+	if err != nil {
+		return nil, err
+	}
+
+	co.SetPushTimestamp(time.Now().Unix())
 
 	return co, nil
 }
 
 func (db *DB) addIdleConn() {
-	conn := new(Conn)
+	var conn ManagedConn
 	select {
 	case db.idleConns <- conn:
 	default:
@@ -215,7 +225,7 @@ func (db *DB) addIdleConn() {
 	}
 }
 
-func (db *DB) closeConn(co *Conn) error {
+func (db *DB) closeConn(co ManagedConn) error {
 	atomic.AddInt64(&db.pushConnCount, 1)
 
 	if co != nil {
@@ -235,7 +245,7 @@ func (db *DB) closeConn(co *Conn) error {
 	return nil
 }
 
-func (db *DB) closeConnNotAdd(co *Conn) error {
+func (db *DB) closeConnNotAdd(co ManagedConn) error {
 	if co != nil {
 		co.Close()
 		conns := db.getIdleConns()
@@ -253,7 +263,7 @@ func (db *DB) closeConnNotAdd(co *Conn) error {
 	return nil
 }
 
-func (db *DB) tryReuse(co *Conn) error {
+func (db *DB) tryReuse(co ManagedConn) error {
 	var err error
 	//reuse Connection
 	if co.IsInTransaction() {
@@ -266,7 +276,7 @@ func (db *DB) tryReuse(co *Conn) error {
 
 	if !co.IsAutoCommit() {
 		//we can not  reuse a connection not in autocomit
-		_, err = co.exec("set autocommit = 1")
+		err = co.SetAutoCommit(1)
 		if err != nil {
 			return err
 		}
@@ -284,8 +294,8 @@ func (db *DB) tryReuse(co *Conn) error {
 	return nil
 }
 
-func (db *DB) PopConn() (*Conn, error) {
-	var co *Conn
+func (db *DB) PopConn() (ManagedConn, error) {
+	var co ManagedConn
 	var err error
 
 	cacheConns, idleConns := db.getConns()
@@ -309,13 +319,13 @@ func (db *DB) PopConn() (*Conn, error) {
 	return co, nil
 }
 
-func (db *DB) GetConnFromCache(cacheConns chan *Conn) *Conn {
-	var co *Conn
+func (db *DB) GetConnFromCache(cacheConns chan ManagedConn) ManagedConn {
+	var co ManagedConn
 	var err error
 	for 0 < len(cacheConns) {
 		co = <-cacheConns
 		atomic.AddInt64(&db.popConnCount, 1)
-		if co != nil && PingPeroid < time.Now().Unix()-co.pushTimestamp {
+		if co != nil && PingPeroid < time.Now().Unix()-co.PushTimestamp() {
 			err = co.Ping()
 			if err != nil {
 				db.closeConn(co)
@@ -329,8 +339,8 @@ func (db *DB) GetConnFromCache(cacheConns chan *Conn) *Conn {
 	return co
 }
 
-func (db *DB) GetConnFromIdle(cacheConns, idleConns chan *Conn) (*Conn, error) {
-	var co *Conn
+func (db *DB) GetConnFromIdle(cacheConns, idleConns chan ManagedConn) (ManagedConn, error) {
+	var co ManagedConn
 	var err error
 	select {
 	case co = <-idleConns:
@@ -351,7 +361,7 @@ func (db *DB) GetConnFromIdle(cacheConns, idleConns chan *Conn) (*Conn, error) {
 		if co == nil {
 			return nil, errors.ErrConnIsNil
 		}
-		if co != nil && PingPeroid < time.Now().Unix()-co.pushTimestamp {
+		if co != nil && PingPeroid < time.Now().Unix()-co.PushTimestamp() {
 			err = co.Ping()
 			if err != nil {
 				db.closeConn(co)
@@ -362,7 +372,7 @@ func (db *DB) GetConnFromIdle(cacheConns, idleConns chan *Conn) (*Conn, error) {
 	return co, nil
 }
 
-func (db *DB) PushConn(co *Conn, err error) {
+func (db *DB) PushConn(co ManagedConn, err error) {
 	atomic.AddInt64(&db.pushConnCount, 1)
 	if co == nil {
 		db.addIdleConn()
@@ -377,7 +387,7 @@ func (db *DB) PushConn(co *Conn, err error) {
 		db.closeConnNotAdd(co)
 		return
 	}
-	co.pushTimestamp = time.Now().Unix()
+	co.SetPushTimestamp(time.Now().Unix())
 	select {
 	case conns <- co:
 		return
@@ -388,18 +398,18 @@ func (db *DB) PushConn(co *Conn, err error) {
 }
 
 type BackendConn struct {
-	*Conn
+	ManagedConn
 	db *DB
 }
 
 func (p *BackendConn) Close() {
-	if p != nil && p.Conn != nil {
-		if p.Conn.pkgErr != nil {
-			p.db.closeConn(p.Conn)
+	if p != nil && p.ManagedConn != nil {
+		if p.ManagedConn.LastError() != nil {
+			p.db.closeConn(p.ManagedConn)
 		} else {
-			p.db.PushConn(p.Conn, nil)
+			p.db.PushConn(p.ManagedConn, nil)
 		}
-		p.Conn = nil
+		p.ManagedConn = nil
 	}
 }
 
@@ -408,7 +418,7 @@ func (db *DB) GetConn() (*BackendConn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &BackendConn{c, db}, nil
+	return &BackendConn{ManagedConn: c, db: db}, nil
 }
 
 func (db *DB) SetLastPing() {

@@ -234,7 +234,7 @@ func (n *Node) DeleteSlave(addr string) error {
 }
 
 func (n *Node) OpenDB(addr string) (*DB, error) {
-	db, err := Open(addr, n.Cfg.User, n.Cfg.Password, "", n.Cfg.MaxConnNum)
+	db, err := OpenWithDriver(n.Cfg.BackendType, addr, n.Cfg.User, n.Cfg.Password, "", n.Cfg.MaxConnNum)
 	return db, err
 }
 
