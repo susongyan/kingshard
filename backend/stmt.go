@@ -31,6 +31,9 @@ type Stmt struct {
 
 	params  int
 	columns int
+
+	paramFields  []*mysql.Field
+	columnFields []*mysql.Field
 }
 
 func (s *Stmt) ParamNum() int {
@@ -43,6 +46,14 @@ func (s *Stmt) ColumnNum() int {
 
 func (s *Stmt) GetId() uint32 {
 	return s.id
+}
+
+func (s *Stmt) ParamFields() []*mysql.Field {
+	return s.paramFields
+}
+
+func (s *Stmt) ColumnFields() []*mysql.Field {
+	return s.columnFields
 }
 
 func (s *Stmt) Execute(args ...interface{}) (*mysql.Result, error) {
@@ -220,13 +231,15 @@ func (c *Conn) Prepare(query string) (PreparedStatement, error) {
 	//warnings = binary.LittleEndian.Uint16(data[pos:])
 
 	if s.params > 0 {
-		if err := s.conn.readUntilEOF(); err != nil {
+		s.paramFields, err = s.conn.readPrepareFields(s.params)
+		if err != nil {
 			return nil, err
 		}
 	}
 
 	if s.columns > 0 {
-		if err := s.conn.readUntilEOF(); err != nil {
+		s.columnFields, err = s.conn.readPrepareFields(s.columns)
+		if err != nil {
 			return nil, err
 		}
 	}

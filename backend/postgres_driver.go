@@ -12,32 +12,22 @@
 // License for the specific language governing permissions and limitations
 // under the License.
 
-package server
+package backend
 
-import "github.com/flike/kingshard/mysql"
+import _ "github.com/lib/pq"
 
-func (c *ClientConn) handleBegin() error {
-	for _, co := range c.txConns {
-		if err := co.Begin(); err != nil {
-			return err
-		}
-	}
-	c.status |= mysql.SERVER_STATUS_IN_TRANS
-	return c.writeOK(nil)
+var _ Driver = postgresDriver{}
+
+type postgresDriver struct{}
+
+func (d postgresDriver) Name() string {
+	return PostgresBackendType
 }
 
-func (c *ClientConn) handleCommit() (err error) {
-	if err := c.commit(); err != nil {
-		return err
-	} else {
-		return c.writeOK(nil)
-	}
+func (d postgresDriver) Open(addr string, user string, password string, db string) (ManagedConn, error) {
+	return newPostgresConn(addr, user, password, db)
 }
 
-func (c *ClientConn) handleRollback() (err error) {
-	if err := c.rollback(); err != nil {
-		return err
-	} else {
-		return c.writeOK(nil)
-	}
+func init() {
+	RegisterDriver(postgresDriver{})
 }

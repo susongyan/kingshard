@@ -55,6 +55,11 @@ type BackendResult struct {
 	Raw          interface{}
 }
 
+type QueryDescription struct {
+	ParamOIDs []uint32
+	Fields    []*mysql.Field
+}
+
 func NewBackendResult(r *mysql.Result) *BackendResult {
 	if r == nil {
 		return nil
@@ -124,6 +129,10 @@ type Driver interface {
 	Open(addr string, user string, password string, db string) (ManagedConn, error)
 }
 
+type QueryDescriber interface {
+	DescribeQuery(query string, paramOIDs []uint32) (*QueryDescription, error)
+}
+
 var (
 	driverMu sync.RWMutex
 	drivers  = make(map[string]Driver)
@@ -158,8 +167,12 @@ func GetDriver(name string) (Driver, error) {
 
 func NormalizeBackendType(name string) string {
 	name = strings.TrimSpace(strings.ToLower(name))
-	if name == "" {
+	switch name {
+	case "":
 		return DefaultBackendType
+	case "postgresql":
+		return PostgresBackendType
+	default:
+		return name
 	}
-	return name
 }

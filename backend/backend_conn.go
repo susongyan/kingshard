@@ -631,6 +631,30 @@ func (c *Conn) readUntilEOF() (err error) {
 	return
 }
 
+func (c *Conn) readPrepareFields(count int) ([]*mysql.Field, error) {
+	fields := make([]*mysql.Field, 0, count)
+
+	for {
+		data, err := c.readPacket()
+		if err != nil {
+			return nil, err
+		}
+
+		if c.isEOFPacket(data) {
+			if len(fields) != count {
+				return nil, mysql.ErrMalformPacket
+			}
+			return fields, nil
+		}
+
+		field, err := mysql.FieldData(data).Parse()
+		if err != nil {
+			return nil, err
+		}
+		fields = append(fields, field)
+	}
+}
+
 func (c *Conn) isEOFPacket(data []byte) bool {
 	return data[0] == mysql.EOF_HEADER && len(data) <= 5
 }

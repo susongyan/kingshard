@@ -234,7 +234,7 @@ func (n *Node) DeleteSlave(addr string) error {
 }
 
 func (n *Node) OpenDB(addr string) (*DB, error) {
-	db, err := OpenWithDriver(n.Cfg.BackendType, addr, n.Cfg.User, n.Cfg.Password, "", n.Cfg.MaxConnNum)
+	db, err := OpenWithDriver(n.Cfg.BackendType, addr, n.Cfg.User, n.Cfg.Password, n.Cfg.Database, n.Cfg.MaxConnNum)
 	return db, err
 }
 
@@ -326,7 +326,7 @@ func (n *Node) ParseMaster(masterStr string) error {
 	return err
 }
 
-//slaveStr(127.0.0.1:3306@2,192.168.0.12:3306@3)
+// slaveStr(127.0.0.1:3306@2,192.168.0.12:3306@3)
 func (n *Node) ParseSlave(slaveStr string) error {
 	var db *DB
 	var weight int

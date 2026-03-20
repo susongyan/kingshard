@@ -114,70 +114,6 @@ func (c *ClientConn) handleStmtPrepare(sql string) error {
 	return nil
 }
 
-func (c *ClientConn) writePrepare(s *Stmt) error {
-	var err error
-	data := make([]byte, 4, 128)
-	total := make([]byte, 0, 1024)
-	//status ok
-	data = append(data, 0)
-	//stmt id
-	data = append(data, mysql.Uint32ToBytes(s.id)...)
-	//number columns
-	data = append(data, mysql.Uint16ToBytes(uint16(s.columns))...)
-	//number params
-	data = append(data, mysql.Uint16ToBytes(uint16(s.params))...)
-	//filter [00]
-	data = append(data, 0)
-	//warning count
-	data = append(data, 0, 0)
-
-	total, err = c.writePacketBatch(total, data, false)
-	if err != nil {
-		return err
-	}
-
-	if s.params > 0 {
-		for i := 0; i < s.params; i++ {
-			data = data[0:4]
-			data = append(data, []byte(paramFieldData)...)
-
-			total, err = c.writePacketBatch(total, data, false)
-			if err != nil {
-				return err
-			}
-		}
-
-		total, err = c.writeEOFBatch(total, c.status, false)
-		if err != nil {
-			return err
-		}
-	}
-
-	if s.columns > 0 {
-		for i := 0; i < s.columns; i++ {
-			data = data[0:4]
-			data = append(data, []byte(columnFieldData)...)
-
-			total, err = c.writePacketBatch(total, data, false)
-			if err != nil {
-				return err
-			}
-		}
-
-		total, err = c.writeEOFBatch(total, c.status, false)
-		if err != nil {
-			return err
-		}
-
-	}
-	total, err = c.writePacketBatch(total, nil, true)
-	total = nil
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func (c *ClientConn) handleStmtExecute(data []byte) error {
 	if len(data) < 9 {
 		return mysql.ErrMalformPacket
@@ -236,25 +172,30 @@ func (c *ClientConn) handleStmtExecute(data []byte) error {
 	}
 
 	var err error
-
-	switch stmt := s.s.(type) {
-	case *sqlparser.Select:
-		err = c.handlePrepareSelect(stmt, s.sql, s.args)
-	case *sqlparser.Insert:
-		err = c.handlePrepareExec(s.s, s.sql, s.args)
-	case *sqlparser.Update:
-		err = c.handlePrepareExec(s.s, s.sql, s.args)
-	case *sqlparser.Delete:
-		err = c.handlePrepareExec(s.s, s.sql, s.args)
-	case *sqlparser.Replace:
-		err = c.handlePrepareExec(s.s, s.sql, s.args)
-	default:
-		err = fmt.Errorf("command %T not supported now", stmt)
-	}
+	err = c.executePreparedStatement(s.s, s.sql, s.args)
 
 	s.ResetParams()
 
 	return err
+}
+
+func (c *ClientConn) executePreparedStatement(stmt sqlparser.Statement, sql string, args []interface{}) error {
+	switch typed := stmt.(type) {
+	case *sqlparser.Select:
+		return c.handlePrepareSelect(typed, sql, args)
+	case *sqlparser.SimpleSelect:
+		return c.handleSimpleSelect(typed)
+	case *sqlparser.Insert:
+		return c.handlePrepareExec(stmt, sql, args)
+	case *sqlparser.Update:
+		return c.handlePrepareExec(stmt, sql, args)
+	case *sqlparser.Delete:
+		return c.handlePrepareExec(stmt, sql, args)
+	case *sqlparser.Replace:
+		return c.handlePrepareExec(stmt, sql, args)
+	default:
+		return fmt.Errorf("command %T not supported now", typed)
+	}
 }
 
 func (c *ClientConn) handlePrepareSelect(stmt *sqlparser.Select, sql string, args []interface{}) error {

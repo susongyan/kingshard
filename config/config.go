@@ -20,13 +20,14 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-//用于通过api保存配置
+// 用于通过api保存配置
 var configFileName string
 
-//整个config文件对应的结构
+// 整个config文件对应的结构
 type Config struct {
 	Addr           string       `yaml:"addr"`
 	PrometheusAddr string       `yaml:"prometheus_addr"`
+	FrontendType   string       `yaml:"frontend_type"`
 	UserList       []UserConfig `yaml:"user_list"`
 
 	WebAddr     string `yaml:"web_addr"`
@@ -45,16 +46,17 @@ type Config struct {
 	SchemaList []SchemaConfig `yaml:"schema_list"`
 }
 
-//user_list对应的配置
+// user_list对应的配置
 type UserConfig struct {
 	User     string `yaml:"user"`
 	Password string `yaml:"password"`
 }
 
-//node节点对应的配置
+// node节点对应的配置
 type NodeConfig struct {
 	Name             string `yaml:"name"`
 	BackendType      string `yaml:"backend_type"`
+	Database         string `yaml:"database"`
 	DownAfterNoAlive int    `yaml:"down_after_noalive"`
 	MaxConnNum       int    `yaml:"max_conns_limit"`
 
@@ -65,7 +67,7 @@ type NodeConfig struct {
 	Slave  string `yaml:"slave"`
 }
 
-//schema对应的结构体
+// schema对应的结构体
 type SchemaConfig struct {
 	User      string        `yaml:"user"`
 	Nodes     []string      `yaml:"nodes"`
@@ -73,7 +75,7 @@ type SchemaConfig struct {
 	ShardRule []ShardConfig `yaml:"shard"`   //route rule
 }
 
-//range,hash or date
+// range,hash or date
 type ShardConfig struct {
 	DB            string   `yaml:"db"`
 	Table         string   `yaml:"table"`

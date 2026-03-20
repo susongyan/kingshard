@@ -76,25 +76,6 @@ func (c *ClientConn) handleFieldList(data []byte) error {
 	}
 }
 
-func (c *ClientConn) writeFieldList(status uint16, fs []*mysql.Field) error {
-	c.affectedRows = int64(-1)
-	var err error
-	total := make([]byte, 0, 1024)
-	data := make([]byte, 4, 512)
-
-	for _, v := range fs {
-		data = data[0:4]
-		data = append(data, v.Dump()...)
-		total, err = c.writePacketBatch(total, data, false)
-		if err != nil {
-			return err
-		}
-	}
-
-	_, err = c.writeEOFBatch(total, status, true)
-	return err
-}
-
 //处理select语句
 func (c *ClientConn) handleSelect(stmt *sqlparser.Select, args []interface{}) error {
 	var fromSlave bool = true

@@ -35,6 +35,13 @@ type Field struct {
 
 	DefaultValueLength uint64
 	DefaultValue       []byte
+
+	PostgresTableOID             uint32
+	PostgresTableAttributeNumber uint16
+	PostgresTypeOID              uint32
+	PostgresTypeSize             int16
+	PostgresTypeModifier         int32
+	PostgresFormat               int16
 }
 
 func (p FieldData) Parse() (f *Field, err error) {
